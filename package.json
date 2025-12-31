@@ -1,0 +1,49 @@
+{
+  "name": "video-editor-vite",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.0.2",
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/types": "^0.12.4",
+    "@ffmpeg/util": "^0.12.2",
+    "@pixi/devtools": "^2.0.1",
+    "@types/lodash": "^4.17.20",
+    "antd": "^5.27.4",
+    "antd-style": "^3.7.1",
+    "dayjs": "^1.11.18",
+    "lodash": "^4.17.21",
+    "numeral": "^2.0.6",
+    "pixi.js": "^8.13.2",
+    "precise-interval": "^1.0.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router": "^7.9.1",
+    "uuid": "^13.0.0",
+    "vite-plugin-svgr": "^4.5.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/node": "^24.5.1",
+    "@types/numeral": "^2.0.5",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.33.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.39.1",
+    "vite": "^7.1.2"
+  }
+}
