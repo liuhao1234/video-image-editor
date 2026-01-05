@@ -11,9 +11,8 @@ abstract class GraphicParent {
   public startPosition: PositionType = {x: 0, y: 0};
   public endPosition: PositionType = {x: 0, y: 0};
   public isDragging: boolean = false;
-  public element: GraphicsElementType | null = null;
   public handlerService: HandlerService;
-  private moveEventService: MoveEventService;
+  public moveEventService: MoveEventService;
 
   constructor(editor: EditorApp) {
     this.editor = editor;
@@ -21,13 +20,13 @@ abstract class GraphicParent {
     this.graphic = new Graphics({
       label: this.id,
       eventMode: 'static',
-    });
-    this.handlerService = new HandlerService(this.id, this.editor);
+    })
+    this.handlerService = new HandlerService(this.editor);
+    this.handlerService.setId(this.id);
     this.moveEventService = new MoveEventService({
-      stage: this.editor.app.stage,
-      target: this.graphic,
+      editor,
       pointerDownCallback: () => {
-        this.editor.selectElement(this.element!);
+        this.editor.selectElement(this.getThis());
       },
       pointerMoveCallback: (endPosition: Point) => {
         this.handlerService.setHandlerPosition(endPosition);
@@ -35,13 +34,12 @@ abstract class GraphicParent {
       onDraggingEnd: (startPosition: Point, endPosition: Point) => {
         this.editor.historyService.onDo({
           type: 'move',
-          item: this.element!,
+          item: this.getThis(),
           oldPosition: startPosition,
           newPosition: endPosition,
         })
       }
     });
-    this.moveEventService.bindMoveEvent();
     this.bindEvent();
   }
 
@@ -55,13 +53,17 @@ abstract class GraphicParent {
     this.handlerService.removeHandler();
   }
 
-  setPosition(x: number, y: number){
-    this.graphic.position.set(x, y);
-  }
+  abstract setPosition(x: number, y: number): void;
+
+  abstract getPosition(): Point;
+
+  abstract getTarget(): Graphics;
+
+  abstract getThis(): GraphicsElementType;
 
   bindEvent(){
     this.graphic.on('click', () => {
-      this.editor.selectElement(this.element!);
+      this.editor.selectElement(this.getThis());
     })
   }
 }

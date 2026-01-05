@@ -7,9 +7,11 @@ import type {
   SizeColorType,
   EditorEventType,
   EditorEventFuncType,
-  emitChangeParamsType,
   EditorEventListType,
-  GraphicsElementType,
+  EmitChangeParamsType,
+  HistoryChangeFuncType,
+  SelectedChangeFuncType,
+  EditableElementType,
 } from '../types/index';
 import RectGraphics from './RectGraphics';
 import EllipseGraphics from './EllipseGraphics';
@@ -36,7 +38,7 @@ class EditorApp {
   private isTextEditing: boolean; // 是否正在编辑文本
   public startPoint: Point | null; // 绘制矩形时的起始点
   private tempGraphics: ElementType | null; // 临时矩形图形（绘制中）
-  private selectItem: GraphicsElementType | TextGraphics | null; // 当前选中的元素
+  private selectItem: EditableElementType | null; // 当前选中的元素
   private rectSizeColor: SizeColorType; // 当前矩形的边框颜色
   private ellipseSizeColor: SizeColorType; // 当前椭圆的边框颜色
   private arrowSizeColor: SizeColorType; // 当前箭头的边框颜色
@@ -98,21 +100,18 @@ class EditorApp {
   }
 
   async loadImg(imgSrc: string){
-    console.log('loadImg', this.app)
     this.imageSrc = imgSrc;
     const texture = await Assets.load(imgSrc);
     const sprite = new Sprite(texture);
-    console.log('loadImg', sprite, sprite.width, sprite.height)
     // 调整渲染器大小
     this.app.renderer.resize(sprite.width, sprite.height);
     // 清空舞台
-    console.log('loadImg', this.sprite)
     if(this.sprite) this.app.stage.removeChild(this.sprite);
     // 加入新的 sprite
     this.app.stage.addChildAt(sprite, 0);
     this.sprite = sprite;
     this.sprite.eventMode = 'static';
-    this.sprite.on('pointerdown', () => {
+    this.sprite.on('click', () => {
       this.selectElement(null);
     });
   }
@@ -141,31 +140,44 @@ class EditorApp {
     this.operateType = operateType;
   }
 
-  selectElement(item: GraphicsElementType | TextGraphics | null){
+  selectElement(item: EditableElementType | null){
     if(this.selectItem && 'visibleHandler' in this.selectItem) {
       this.selectItem.visibleHandler(false)
     }
     if(item && 'visibleHandler' in item) {
-      console.log('selectElement', item)
       item.visibleHandler(true)
     }
     this.selectItem = item;
+    // 触发选中元素变化事件
+    this.emit('selectedChange', item);
   }
 
   setRectSizeColor(sizeColor: SizeColorType){
     this.rectSizeColor = sizeColor;
+    if(this.selectItem){
+      this.changeItemSizeColor(this.selectItem, sizeColor);
+    }
   }
 
   setEllipseSizeColor(sizeColor: SizeColorType){
     this.ellipseSizeColor = sizeColor;
+    if(this.selectItem){
+      this.changeItemSizeColor(this.selectItem, sizeColor);
+    }
   }
 
   setArrowSizeColor(sizeColor: SizeColorType){
     this.arrowSizeColor = sizeColor;
+    if(this.selectItem){
+      this.changeItemSizeColor(this.selectItem, sizeColor);
+    }
   }
 
   setPencilSizeColor(sizeColor: SizeColorType){
     this.pencilSizeColor = sizeColor;
+    if(this.selectItem){
+      this.changeItemSizeColor(this.selectItem, sizeColor);
+    }
   }
 
   setMosaicSize(size: OperateSize){
@@ -174,6 +186,19 @@ class EditorApp {
 
   setTextSizeColor(sizeColor: SizeColorType){
     this.textSizeColor = sizeColor;
+    if(this.selectItem){
+      this.changeItemSizeColor(this.selectItem, sizeColor);
+    }
+  }
+
+  changeItemSizeColor(item: EditableElementType, sizeColor: SizeColorType){
+    this.historyService.onDo({
+      type: 'sizeColor',
+      item,
+      oldSizeColor: {...item.sizeColor},
+      newSizeColor: sizeColor,
+    });
+    item.changeSizeColor(sizeColor);
   }
 
   // 完成文本输入
@@ -182,6 +207,7 @@ class EditorApp {
     const textInputDom = document.getElementById('textInput') as HTMLElement;
     const value = textInputDom!.innerText;
     textInputDom!.style.display = 'none';
+    textInputDom!.innerText = '';
     textInputDom!.style.left = `0px`;
     textInputDom!.style.top = `0px`;
     if(value && this.tempGraphics){
@@ -318,10 +344,13 @@ class EditorApp {
     }
     this.eventList[event].push(callback);
   }
-  emit(event: EditorEventType, params: emitChangeParamsType){
+  emit(event: EditorEventType, params: EmitChangeParamsType | EditableElementType | null){
     if(this.eventList[event]){
-      if(event === 'change'){
-        this.eventList[event].forEach(callback => callback(params));
+      if(event === 'historyChange'){
+        (this.eventList[event] as HistoryChangeFuncType[]).forEach(callback => callback(params as EmitChangeParamsType));
+      }
+      if(event === 'selectedChange'){
+        (this.eventList[event] as SelectedChangeFuncType[]).forEach(callback => callback(params as EditableElementType | null));
       }
     }
   }
@@ -347,7 +376,6 @@ class EditorApp {
     // 鼠标点击（开始绘制）
     this.app.stage.on('pointerdown', async (e) => {
       this.startPoint = new Point(e.global.x, e.global.y);
-      console.log(this.startPoint)
       // 开始绘制矩形
       if(this.operateType === OperateType.RECT){
         this.isDrawing = true

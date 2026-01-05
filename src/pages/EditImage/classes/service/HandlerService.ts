@@ -1,3 +1,4 @@
+import { OperateType } from '../../constants/enum';
 import type { GraphicsElementType } from '../../types/index';
 import { Container, Graphics, Point } from 'pixi.js';
 import { FederatedPointerEvent } from 'pixi.js';
@@ -9,13 +10,20 @@ class HandlerService {
   private isDragging: boolean = false;
   private handlerContainer: Container | null = null;
   private element: GraphicsElementType | null = null;
+  private currentStartPoint: Point | null = null;
+  private currentEndPoint: Point | null = null;
+  private currentHandle: { name: string } | null = null;
   private handlePointerMoveCallback : (e: FederatedPointerEvent) => void;
   private handlerPointUpCallback : (e: FederatedPointerEvent) => void;
-  constructor(id: string, editor: EditorApp) {
-    this.id = `handler-${id}`;
+  constructor(editor: EditorApp) {
+    this.id = 'handler';
     this.editor = editor;
     this.handlePointerMoveCallback = this.handlerPointMove.bind(this);
     this.handlerPointUpCallback = this.handlerPointUp.bind(this);
+  }
+
+  setId(id: string){
+    this.id = `handler-${id}`;
   }
 
   setElement(element: GraphicsElementType){
@@ -32,7 +40,6 @@ class HandlerService {
     if (!this.handlerContainer) {
       this.handlerContainer = new Container({
         label: this.id,
-        eventMode: 'none',
       });
       this.editor.annotationContainer.addChild(this.handlerContainer);
     }
@@ -53,8 +60,89 @@ class HandlerService {
     const {x, y, width, height} = bounds;
     const graphic = new Graphics();
     graphic.rect(x - padding, y - padding, width + padding * 2, height + padding * 2).stroke({ width: 2, color: 0X888888, alpha: 1, alignment: 0.5 });
+    this.handlerContainer.removeChildren();
     this.handlerContainer.addChild(graphic);
   }
+
+  getStartEndPoint (startPoint: Point, endPoint: Point){
+    return {startPoint, endPoint};
+  }
+
+  handleDragDown(e: FederatedPointerEvent, handleName: string){
+    e.stopPropagation();
+    this.currentHandle = { name: handleName };
+    this.isDragging = true
+    this.currentStartPoint = new Point(this.element?.startPoint.x, this.element?.startPoint.y)
+    this.currentEndPoint = new Point(this.element?.endPoint.x, this.element?.endPoint.y)
+    this.editor.app.stage.on('pointermove', this.handlePointerMoveCallback);
+    this.editor.app.stage.on('pointerup', this.handlerPointUpCallback);
+    this.editor.app.stage.on('pointerupoutside', this.handlerPointUpCallback);
+  }
+  handlerPointMove(e: FederatedPointerEvent){
+    if(!this.isDragging) return
+    e.stopPropagation();
+    if(this.element!.type === OperateType.ARROW){
+      if(this.currentHandle?.name === 'start'){
+        this.element?.draw(new Point(e.global.x, e.global.y),(this.element).endPoint);
+      }
+      if(this.currentHandle?.name === 'end'){
+        this.element?.draw((this.element).startPoint, new Point(e.global.x, e.global.y));
+      }
+    }
+    if(this.element!.type === OperateType.RECT || this.element!.type === OperateType.CIRCLE){
+      const {x: positionX, y: positionY} = this.element!.getPosition();
+      const eX = e.global.x - positionX;
+      const eY = e.global.y - positionY;
+      if(this.currentHandle?.name === 'tl'){
+        const {startPoint, endPoint} = this.getStartEndPoint(new Point(eX, eY), this.currentEndPoint!);
+        this.element?.draw(startPoint, endPoint);
+      }
+      if(this.currentHandle?.name === 'tc'){
+        const {startPoint, endPoint} = this.getStartEndPoint(new Point(this.currentStartPoint!.x, eY), this.currentEndPoint!);
+        this.element?.draw(startPoint, endPoint);
+      }
+      if(this.currentHandle?.name === 'tr'){
+        const {startPoint, endPoint} = this.getStartEndPoint(new Point(this.currentStartPoint!.x, eY), new Point(eX, this.currentEndPoint!.y));
+        this.element?.draw(startPoint, endPoint);
+      }
+      if(this.currentHandle?.name === 'rc'){
+        const {startPoint, endPoint} = this.getStartEndPoint(this.currentStartPoint!, new Point(eX, this.currentEndPoint!.y));
+        this.element?.draw(startPoint, endPoint);
+      }
+      if(this.currentHandle?.name === 'br'){
+        const {startPoint, endPoint} = this.getStartEndPoint(this.currentStartPoint!, new Point(eX, eY));
+        this.element?.draw(startPoint, endPoint);
+      }
+      if(this.currentHandle?.name === 'bc'){
+        const {startPoint, endPoint} = this.getStartEndPoint(this.currentStartPoint!, new Point( this.currentEndPoint!.x, eY));
+        this.element?.draw(startPoint, endPoint);
+      }
+      if(this.currentHandle?.name === 'bl'){
+        const {startPoint, endPoint} = this.getStartEndPoint(new Point(eX, this.currentStartPoint!.y), new Point(this.currentEndPoint!.x, eY));
+        this.element?.draw(startPoint, endPoint);
+      }
+      if(this.currentHandle?.name === 'lc'){
+        const {startPoint, endPoint} = this.getStartEndPoint(new Point(eX, this.currentStartPoint!.y), this.currentEndPoint!);
+        this.element?.draw(startPoint, endPoint);
+      }
+    }
+  }
+  // 处理框的点的移动
+  handlerPointUp(){
+    if(!this.isDragging) return
+    this.isDragging = false
+    this.currentHandle = null;
+    this.editor.historyService.onDo({
+      type: 'resize',
+      item: this.element!,
+      oldPoints: [this.currentStartPoint!, this.currentEndPoint!],
+      newPoints: [new Point(this.element!.startPoint.x, this.element!.startPoint.y), new Point(this.element!.endPoint.x, this.element!.endPoint.y)],
+    })
+    this.editor.app.stage.off('pointermove', this.handlePointerMoveCallback);
+    this.editor.app.stage.off('pointerup', this.handlerPointUpCallback);
+    this.editor.app.stage.off('pointerupoutside', this.handlerPointUpCallback);
+  }
+
   // 绘制处理框的点
   drawHandlerPoints(element: GraphicsElementType){
     const bounds = element.graphic.bounds;
@@ -71,44 +159,53 @@ class HandlerService {
       id: 'tl',
       point: pointTL,
       cursor: 'nw-resize',
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'tl'),
     },
     {
       id: 'tc',
       point: pointTC,
       cursor: 'n-resize',
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'tc'),
     },{
       id: 'tr',
       point: pointTR,
       cursor: 'ne-resize',
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'tr'),
     },{
       id: 'rc',
       point: pointRC,
       cursor: 'e-resize',
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'rc'),
     },{
       id: 'br',
       point: pointBR,
       cursor: 'se-resize',
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'br'),
     },
     {
       id: 'bc',
       point: pointBC,
       cursor: 's-resize',
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'bc'),
     },{
       id: 'bl',
       point: pointBL,
       cursor: 'sw-resize',
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'bl'),
     },{
       id: 'lc',
       point: pointLC,
       cursor: 'w-resize',
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'lc'),
     }]
     points.forEach((item) => {
-      const {id, point, cursor} = item;
+      const {id, point, cursor, pointerDown} = item;
       const graphic = new Graphics({
         label: id,
       });
       graphic.circle(point.x, point.y, 4).fill(0XFFFFFF).stroke({ width: 1, color: 0X5b5b5b, alpha: 1 });
       graphic.cursor = cursor;
+      graphic.on('pointerdown', pointerDown);
       this.handlerContainer!.addChild(graphic);
     })
   }
@@ -135,47 +232,18 @@ class HandlerService {
     handlerContainer.addChild(graphic);
   }
 
-  handlerPointMove(e: FederatedPointerEvent){
-    if(!this.isDragging) return
-    e.stopPropagation();
-    console.log('handlerPointMove', e.global.x, e.global.y);
-  }
-  // 处理框的点的移动
-  handlerPointUp(){
-    if(!this.isDragging) return
-    console.log('handlerPointUp');
-    this.editor.app.stage.off('pointermove', this.handlePointerMoveCallback);
-    this.editor.app.stage.off('pointerup', this.handlerPointUpCallback);
-    this.editor.app.stage.off('pointerupoutside', this.handlerPointUpCallback);
-  }
-
   drawArrowHandlerPoints(startPoint: Point, endPoint: Point, handlerContainer: Container){
     const {startPointMe, endPointMe} = this._transformArrowPoints(startPoint, endPoint);
     const points = [{
       id: 'start',
       point: startPointMe,
       cursor: 'nw-resize',
-      pointerDown: (e: FederatedPointerEvent) => {
-        e.stopPropagation();
-        this.isDragging = true
-        console.log('start pointerDown');
-        this.editor.app.stage.on('pointermove', this.handlePointerMoveCallback);
-        this.editor.app.stage.on('pointerup', this.handlerPointUpCallback);
-        this.editor.app.stage.on('pointerupoutside', this.handlerPointUpCallback);
-        this.element?.draw(new Point(e.global.x, e.global.y),this.element.endPoint);
-      },
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'start'),
     },{
       id: 'end',
       point: endPointMe,
       cursor: 'nw-resize',
-      pointerDown: (e: FederatedPointerEvent) => {
-        e.stopPropagation();
-        this.isDragging = true
-        console.log('end pointerDown');
-        this.editor.app.stage.on('pointermove', this.handlePointerMoveCallback);
-        this.editor.app.stage.on('pointerup', this.handlerPointUpCallback);
-        this.editor.app.stage.on('pointerupoutside', this.handlerPointUpCallback);
-      },
+      pointerDown: (e: FederatedPointerEvent) => this.handleDragDown(e, 'end'),
     }]
     points.forEach((item) => {
       const {id, point, cursor, pointerDown} = item;

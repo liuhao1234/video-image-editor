@@ -52,11 +52,9 @@ class MosaicGraphics {
     })
   }
   draw(point: Point) {
-    console.log(point)
     const { x, y } = point;
     this.path.push(point);
     this.brush.position.set(x, y);
-    console.log(this.renderTexture)
     this.editor.app.renderer.render({
       container: this.brush,
       target: this.renderTexture!,

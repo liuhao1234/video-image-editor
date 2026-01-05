@@ -12,7 +12,8 @@ class ArrowGraphics extends GraphicParent {
   constructor(editor: EditorApp, sizeColor: SizeColorType) {
     super(editor);
     this.handlerService.setElement(this);
-    this.element = this;
+    this.moveEventService.setElement(this);
+    this.moveEventService.bindMoveEvent();
     this.type = OperateType.ARROW;
     this.sizeColor = sizeColor;
     this.startPoint = new Point();
@@ -47,6 +48,30 @@ class ArrowGraphics extends GraphicParent {
     this.graphic.rotation = angle;
     this.drawHandler();
   }
+  
+  changeSizeColor(sizeColor: SizeColorType){
+    this.sizeColor = sizeColor;
+    this.draw(this.startPoint, this.endPoint);
+  }
+  
+  setPosition(x: number, y: number){
+    this.graphic.position.set(x, y);
+    this.endPoint = new Point(this.endPoint.x + x - this.startPoint.x, this.endPoint.y + y - this.startPoint.y);
+    this.startPoint = new Point(x, y);
+  }
+
+  getPosition(){
+    return this.graphic.position;
+  }
+  
+  getTarget(){
+    return this.graphic;
+  }
+  
+  getThis(){
+    return this;
+  }
+  
   drawHandler(){
     this.handlerService.drawArrowHandler(this.startPoint, this.endPoint);
   }

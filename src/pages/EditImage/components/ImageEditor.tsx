@@ -4,15 +4,16 @@ import { Button, Space } from 'antd';
 import { RetweetOutlined } from '@ant-design/icons';
 import { useImageEditorStore } from '../store';
 import { useStyles } from '../styles/index.style';
-import { OperateType } from '../constants/enum';
 import { calculateImageScale } from '../utils/index';
-import type { PositionType, emitChangeParamsType } from '../types/index';
+import { fontSizeMap, OperateSize, OperateColor, OperateType } from '../constants/enum';
+import type { PositionType, EmitChangeParamsType, EditableElementType } from '../types/index';
 
 export default function ImageEditor() {
   const {
     currentEditor,
     setCurrentEditor,
     currentOperate,
+    setCurrentOperate,
     currentImage,
     currentImageScale, 
     currentImagePosition,
@@ -39,10 +40,8 @@ export default function ImageEditor() {
   // 加载图片
   const loadImg = useCallback(async () => {
     if(!currentImage || !currentEditor) return;
-    console.log('loadImg start')
     // 清除之前的注释
     currentEditor.clearAnnotation();
-    console.log('loadImg', currentImage)
     // 加载图片
     await currentEditor.loadImg(currentImage.src);
     // 初始化图片位置
@@ -52,27 +51,22 @@ export default function ImageEditor() {
     })
     // 初始化图片对象
     setCurrentImageSprite(currentEditor.sprite);
-    console.log('loadImg end')
   }, [currentEditor, currentImage, setCurrentImagePosition, setCurrentImageSprite]);
 
   // 图片自适应
   const fitImage = useCallback(() => {
     if(!currentImageSprite) return;
-    console.log('fitImage start')
     const scale = calculateImageScale(currentImageSprite, editorSize);
-    console.log('scale', scale)
     // 如果容器能放下图片，则原始大小展示
     if(scale > 1){
       setCurrentImageScale(1);
       currentEditor?.setCurrentImageScale(1);
-      console.log('fitImage end')
       return;
     }
     // 如果计算得出的缩放比例大于当前缩放比例，则使用当前缩放比例
     // if(scale > currentImageScale) return;
     setCurrentImageScale(scale);
     currentEditor?.setCurrentImageScale(scale);
-    console.log('fitImage end')
   }, [currentEditor, currentImageSprite, editorSize, setCurrentImageScale]);
 
   // 图片缩放
@@ -131,7 +125,6 @@ export default function ImageEditor() {
     if(!currentEditor) return;
     const annotation = currentEditor.annotationService.getAnnotation();
     localStorage.setItem('annotation', JSON.stringify(annotation));
-    console.log(annotation)
   },[currentEditor]);
 
   // 渲染标注
@@ -172,18 +165,27 @@ export default function ImageEditor() {
       isDraggingRef.current = false;
     };
   },[currentOperate]);
-  const onEditorChange = useCallback((params: emitChangeParamsType) => {
+  // 历史记录变化时，更新撤销重做按钮状态
+  const onHistoryChange = useCallback((params: EmitChangeParamsType) => {
     setUndoDisable(!params.canUndo);
     setRedoDisable(!params.canRedo);
   },[setUndoDisable, setRedoDisable])
+  // 选中元素变化时，更新选中元素
+  const onSelectedChange = useCallback((item: EditableElementType | null) => {
+    console.log('onSelectedChange', item)
+    setCurrentOperate(item?.type || null);
+  },[setCurrentOperate])
   // 初始化应用
   useEffect(() => {
     const editor = new EditorApp(canvasContainerRef.current);
-    editor.on('change', (params) => {
-      onEditorChange(params);
+    editor.on('historyChange', (params: EmitChangeParamsType) => {
+      onHistoryChange(params);
+    })
+    editor.on('selectedChange', (item: EditableElementType | null) => {
+      onSelectedChange(item);
     })
     setCurrentEditor(editor);
-  }, [setCurrentEditor, onEditorChange]);
+  }, [setCurrentEditor, onHistoryChange, onSelectedChange]);
 
   // 图片发生变化时，加载图片
   useEffect(() => {
@@ -252,6 +254,10 @@ export default function ImageEditor() {
         contentEditable={true}
         className="text-input"
         id="textInput"
+        style={{
+          fontSize: `${fontSizeMap[OperateSize.MEDIUM]}px`,
+          color: `${OperateColor.RED}`,
+        }}
       ></div>
     </div>
   );

@@ -2,7 +2,7 @@ import { Select } from 'antd';
 import { useStyles } from '../styles/index.style';
 import type { SizeColorType } from '../types/index';
 import { OperateType,OperateSize, OperateColor, OperateSizeText } from '../constants/enum';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 interface OperateSizeColorProps {
   type?: OperateType;
   onChange: (value:SizeColorType) => void;
@@ -12,9 +12,6 @@ export default function OperateSizeColor({type, onChange}: OperateSizeColorProps
   const {styles} = useStyles();
   const [currentSize, setCurrentSize] = useState<OperateSize>(OperateSize.MEDIUM);
   const [currentColor, setCurrentColor] = useState<OperateColor>(OperateColor.RED);
-  useEffect(() => {
-    onChange({size: currentSize, color: currentColor});
-  }, [currentSize, currentColor, onChange]);
   return (
     <div className={styles.OperateSizeColorContainer} onClick={(e) => e.stopPropagation()}>
       {type === OperateType.TEXT ? <div className="size">
@@ -29,6 +26,7 @@ export default function OperateSizeColor({type, onChange}: OperateSizeColorProps
           value={currentSize}
           onChange={(value) => {
             setCurrentSize(value);
+            onChange({size: value, color: currentColor});
           }}
         />
       </div>:
@@ -38,7 +36,10 @@ export default function OperateSizeColor({type, onChange}: OperateSizeColorProps
           return <div
             key={key}
             className={`size-item ${value} ${currentSize === value ? 'active' : ''}`}
-            onClick={() => setCurrentSize(value)}
+            onClick={() => {
+              setCurrentSize(value);
+              onChange({size: value, color: currentColor});
+            }}
           >
           </div>
         })}
@@ -49,7 +50,10 @@ export default function OperateSizeColor({type, onChange}: OperateSizeColorProps
           return <div
             key={key}
             className={`color-item ${value} ${currentColor === value ? 'active' : ''}`}
-            onClick={() => setCurrentColor(value)}
+            onClick={() => {
+              setCurrentColor(value);
+              onChange({size: currentSize, color: value});
+            }}
           ></div>
         })}
       </div>}

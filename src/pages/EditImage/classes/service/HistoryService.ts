@@ -6,6 +6,9 @@ import type {
 } from '../../types/index';
 import MosaicGraphics from '../MosaicGraphics';
 import TextGraphics from '../TextGraphics';
+import RectGraphics from '../RectGraphics';
+import EllipseGraphics from '../EllipseGraphics';
+import ArrowGraphics from '../ArrowGraphics';
 class HistoryService {
   private editor: EditorApp;
   private undoStack: HistoryItemType[] = []; // 历史记录列表
@@ -49,6 +52,16 @@ class HistoryService {
           (historyItem.item as GraphicsElementType).handlerService.setPosition(historyItem.oldPosition!.x, historyItem.oldPosition!.y);
         }
       }
+      if(historyItem.type === 'resize'){
+        if(historyItem.item instanceof RectGraphics || historyItem.item instanceof EllipseGraphics || historyItem.item instanceof ArrowGraphics){
+          historyItem.item.draw(historyItem.oldPoints![0], historyItem.oldPoints![1]);
+        }
+      }
+      if(historyItem.type === 'sizeColor'){
+        if('changeSizeColor' in historyItem.item){
+          historyItem.item.changeSizeColor(historyItem.oldSizeColor!);
+        }
+      }
     }
     if(action === 'redo'){
       if(historyItem.type === 'add'){
@@ -82,16 +95,25 @@ class HistoryService {
           (historyItem.item as GraphicsElementType).handlerService.setPosition(historyItem.newPosition!.x, historyItem.newPosition!.y);
         }
       }
+      if(historyItem.type === 'resize'){
+        if(historyItem.item instanceof RectGraphics || historyItem.item instanceof EllipseGraphics || historyItem.item instanceof ArrowGraphics){
+          historyItem.item.draw(historyItem.newPoints![0], historyItem.newPoints![1]);
+        }
+      }
+      if(historyItem.type === 'sizeColor'){
+        if('changeSizeColor' in historyItem.item){
+          historyItem.item.changeSizeColor(historyItem.newSizeColor!);
+        }
+      }
     }
   }
   // 撤销操作点击时
   undo(){
     if(!this.canUndo()) return;
     const item = this.undoStack.pop();
-    console.log('undo',item)
     this.doOperation(item!, 'undo');
     this.redoStack.push(item!);
-    this.editor.emit('change', {
+    this.editor.emit('historyChange', {
       canUndo: this.canUndo(),
       canRedo: this.canRedo(),
     });
@@ -100,10 +122,9 @@ class HistoryService {
   redo(){
     if(!this.canRedo()) return;
     const item = this.redoStack.pop();
-    console.log('redo',item)
     this.doOperation(item!, 'redo');
     this.undoStack.push(item!);
-    this.editor.emit('change', {
+    this.editor.emit('historyChange', {
       canUndo: this.canUndo(),
       canRedo: this.canRedo(),
     });
@@ -120,7 +141,7 @@ class HistoryService {
   onDo(params: HistoryItemType){
     this.redoStack = [];
     this.undoStack.push(params);
-    this.editor.emit('change', {
+    this.editor.emit('historyChange', {
       canUndo: this.canUndo(),
       canRedo: this.canRedo(),
     });

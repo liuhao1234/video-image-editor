@@ -35,10 +35,10 @@ class TextGraphics {
         fill: colorMap[this.sizeColor.color],
       }
     })
-    this.handlerService = new HandlerService(this.id, this.editor);
+    this.handlerService = new HandlerService(this.editor);
+    this.handlerService.setId(this.id);
     this.moveEventService = new MoveEventService({
-      stage: this.editor.app.stage,
-      target: this.text,
+      editor: this.editor,
       pointerDownCallback: () => {
         this.editor.selectElement(this);
       },
@@ -54,12 +54,28 @@ class TextGraphics {
         })
       }
     });
+    this.moveEventService.setElement(this);
     this.moveEventService.bindMoveEvent();
     this.bindEvent();
+  }
+  
+  changeSizeColor(sizeColor: SizeColorType){
+    this.sizeColor = sizeColor;
+    this.text.style.fontSize = fontSizeMap[this.sizeColor.size] / this.imageScale;
+    this.text.style.fill = colorMap[this.sizeColor.color];
+    this.drawHandler();
   }
 
   setPosition(x: number, y: number){
     this.text.position.set(x, y);
+  }
+
+  getPosition(){
+    return this.text.position;
+  }
+
+  getTarget(){
+    return this.text;
   }
 
   textUpdate(text: string){
@@ -78,6 +94,7 @@ class TextGraphics {
     })
     this.textUpdate(textInputDom.innerText);
     textInputDom.style.display = 'none';
+    textInputDom.innerText = '';
     this.text.visible = true;
     this.editor.setTextEditStatus(false);
     textInputDom.removeEventListener('blur', this.finishTextingFunc);
@@ -89,7 +106,6 @@ class TextGraphics {
   }
 
   visibleHandler(visible: boolean) {
-    console.log('visibleHandler', visible);
     this.handlerService.visibleHandler(visible);
   }
 

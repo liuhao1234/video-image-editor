@@ -102,7 +102,6 @@ class AnnotationService {
 
   // 根据标注数据初始化标注
   renderAnnotation(annotation: (AnnotationType|MosaicGraphics)[]){
-    console.log(annotation)
     annotation.forEach(async (item) => {
       if(item.type === OperateType.RECT){
         const currentItem = item as RectAnnotationType;
@@ -110,6 +109,7 @@ class AnnotationService {
         this.editor.annotationContainer.addChild(rectGraphics.graphic);
         rectGraphics.setPosition(currentItem.position.x, currentItem.position.y);
         rectGraphics.drawRect(currentItem.x, currentItem.y, currentItem.width, currentItem.height);
+        rectGraphics.handlerService.setHandlerPosition(new Point(currentItem.position.x, currentItem.position.y));
         rectGraphics.visibleHandler(false);
         this.editor.elementList.push(rectGraphics);
       }
@@ -119,6 +119,7 @@ class AnnotationService {
         this.editor.annotationContainer.addChild(ellipseGraphics.graphic);
         ellipseGraphics.setPosition(currentItem.position.x, currentItem.position.y);
         ellipseGraphics.drawEllipse(currentItem.x, currentItem.y, currentItem.radiusX, currentItem.radiusY);
+        ellipseGraphics.handlerService.setHandlerPosition(new Point(currentItem.position.x, currentItem.position.y));
         ellipseGraphics.visibleHandler(false);
         this.editor.elementList.push(ellipseGraphics);
       }
@@ -144,6 +145,8 @@ class AnnotationService {
         this.editor.annotationContainer.addChild(textGraphics.text);
         textGraphics.text.position.set(currentItem.position.x, currentItem.position.y);
         textGraphics.text.text = currentItem.text;
+        textGraphics.drawHandler();
+        textGraphics.visibleHandler(false);
         this.editor.elementList.push(textGraphics);
       }
       if(item.type === OperateType.MOSAIC){

@@ -138,6 +138,7 @@ export const useStyles = createStyles(() => {
         minWidth: '10px',
         fontSize: '24px',
         color: '#f00',
+        lineHeight: '1.2',
         outline: '2px dashed rgba(224,224,224,1)',
         boxSizing: 'border-box',
         background: 'transparent',
